@@ -1,5 +1,4 @@
-﻿
-using System.IO.Compression;
+﻿using System.IO.Compression;
 
 namespace PakConflictHelper
 {
@@ -15,14 +14,21 @@ namespace PakConflictHelper
                 .Where(p => !p.EndsWith("data0.pak") && !p.EndsWith("data1.pak"))
                 .ToList();
 
-            var pakNames = new List<string>();
+            if(paks.Count < 1)
+            {
+                Log("> No .pak files found in current folder");
+                Log("> Press ENTER to exit");
+                Console.ReadLine();
+                return;
+            }
+
+            List<string> pakNames = [];
             
             foreach(var pak in paks)
             {
                 var filename = Path.GetFileName(pak);
-
                 pakNames.Add(filename);
-                
+
                 try
                 {
                     using ZipArchive archive = ZipFile.OpenRead(pak);
@@ -30,16 +36,14 @@ namespace PakConflictHelper
                     {
                         if(!entry.FullName.EndsWith('/'))
                         {
-                            if(FileMap.TryGetValue(entry.FullName, out List<string>? value))
+                            if(FileMap.TryGetValue(entry.FullName, out List<string>? pakList))
                             {
-                                value.Add(filename);
+                                pakList.Add(filename);
                             }
                             else
                             {
                                 FileMap[entry.FullName] = [filename];
-
                             }
-
                         }
                     }
                 }
@@ -49,43 +53,22 @@ namespace PakConflictHelper
                 }
             }
 
-            if(paks.Count < 1)
-            {
-                Log("> No .pak files found in current folder");
-
-                Log("> Press ENTER to exit");
-
-                Console.Read();
-
-                return;
-            }
-
             Log($"Files to check: {string.Join(", ", pakNames)}");
 
             var conflicts = FileMap.Where(kvp => kvp.Value.Count > 1).ToList();
 
-            if(conflicts.Count != 0)
+            if(conflicts.Count > 0)
             {
                 Log("");
-                foreach (var conflict in conflicts)
-                {
-                    Log($"<!> {conflict.Key} @ {string.Join(" + ", conflict.Value)}");
-                }
+                conflicts.ForEach(c => Log($"<!> {c.Key} @ {string.Join(" + ", c.Value)}"));
             }
 
             Log("");
-
             Log($"Finished! {conflicts.Count} conflicts found. Press ENTER to exit");
 
             Console.ReadLine();
         }
 
-
-        static void Log(string text)
-        {
-            var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
-            Console.WriteLine($"[{timestamp}] {text}");
-        }
+        static void Log(string text) => Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {text}");
     }
 }
